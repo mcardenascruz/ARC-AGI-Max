@@ -1,0 +1,21 @@
+[project]
+name = "arcagiepoch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "accelerate>=1.10.1",
+    "bitsandbytes>=0.47.0",
+    "datasets>=4.1.1",
+    "evaluate>=0.4.6",
+    "logging>=0.4.9.6",
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "peft>=0.17.1",
+    "pillow>=11.3.0",
+    "scikit-learn>=1.7.2",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
+    "transformers>=4.56.2",
+]
