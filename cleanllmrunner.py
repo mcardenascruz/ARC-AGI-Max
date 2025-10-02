@@ -57,7 +57,7 @@ def generate_code(taskData: dict) -> str:
             **inputs1,
             max_new_tokens=max_new_tokens,
             num_return_sequences=1,
-            temperature=0.1,  
+            temperature=0.3,  
             
         )
 
@@ -129,7 +129,7 @@ def evaluate_code(code: str, taskData: dict, is_train: bool = True) -> dict:
         return {"error": f"Code execution error: {e}", "predicted": None, "expected": None}
 
     examples = taskData.get('train' if is_train else 'test', [])
-
+    matched = False
     predicted = None
     expected_output = None
     for idx, example in enumerate(examples):
@@ -141,6 +141,8 @@ def evaluate_code(code: str, taskData: dict, is_train: bool = True) -> dict:
             # report the runtime error but keep trying next examples
             print(f"could not run function on input (example #{idx}): {e}")
             predicted = None
+    if predicted == expected_output:
+        matched = True
 
     return {"error": None, "predicted": predicted, "expected": expected_output}
 
@@ -165,25 +167,38 @@ def batch_evaluate(directory: str):
 
     keys= (['8e1813be.json', '694f12f3.json', '8be77c9e.json', '0ca9ddb6.json', '264363fd.json', '1cf80156.json', '2dee498d.json', '2bee17df.json', 'f35d900a.json', '93b581b8.json', '28bf18c6.json', 'ddf7fa4f.json', 'b548a754.json', 'bd4472b8.json', 'b60334d2.json', 'ea32f347.json', 'e50d258f.json', 'a79310a0.json', 'dae9d2b5.json', '25d487eb.json', 'c9e6f938.json', 'd687bc17.json', '09629e4f.json', '23581191.json', '67385a82.json', '56dc2b01.json', '890034e9.json', '3c9b0459.json', '46442a0e.json', '780d0b14.json', '3af2c5a8.json', '8efcae92.json', 'e9614598.json', '7b6016b9.json', 'ce4f8723.json', '941d9a10.json', 'd22278a0.json', '72322fa7.json', '3428a4f5.json', '9d9215db.json', '3ac3eb23.json', '9ecd008a.json', '4be741c5.json', 'dc0a314f.json', '88a62173.json', '7447852a.json', '5c0a986e.json', '5c2c9af4.json', '9565186b.json', '2281f1f4.json'])
     for filename in sorted(os.listdir(directory)):
-        if filename.endswith(".json"): # for peter dataset add "and filename in keys"
+        if filename.endswith(".json"):# and filename in keys: # for peter dataset add "and filename in keys"
             filepath = os.path.join(directory, filename)
             with open(filepath, 'r') as f:
                 try:
                     taskData = json.load(f)
                     print(f"\nProcessing task: {filename}")
-                    generated_code = generate_code(taskData)
-                    with open(log_file, 'a') as log:
-                        log.write(f"Task: {filename}\n{generated_code}\n\n{'-'*40}\n")
+                    match = False
+                    count = 0
+                    for count in range(3): # try 3 times
+                        generated_code = generate_code(taskData)
+                        with open(log_file, 'a') as log:
+                            log.write(f"Task: {filename}\n{generated_code}\n\n{'-'*40}\n")
 
-                    train_eval = evaluate_code(generated_code, taskData, is_train=True)
+                        train_eval = evaluate_code(generated_code, taskData, is_train=True)
 
-                    # If there was a catastrophic code execution error
-                    if train_eval.get("error"):
-                        print(f"  -> Reason: {train_eval['error']}")
-                        failed_tasks.append(filename)
-                        continue
-                    else:
-                        # print the predicted grid (may be None)
+                        # If there was a catastrophic code execution error
+                        if train_eval.get("error"):
+                            print(f"  -> Reason: {train_eval['error']}")
+                            failed_tasks.append(filename)
+                            continue
+                        else:
+                            # print the predicted grid (may be None)
+                            if train_eval.get("predicted") == train_eval.get("expected"):
+                                plot_grid(filename, train_eval.get("predicted"), filename=f"{filename}_predicted.png")
+                                plot_grid(f"{filename} - Expected", train_eval.get("expected"), filename=f"{filename}_expected.png")
+                                count = 2
+                                match = True
+                            else:
+                                count += 1
+                        
+                    if match == False:
+                        print(f"  -> Attempt {count}: Train Mismatch")
                         plot_grid(filename, train_eval.get("predicted"), filename=f"{filename}_predicted.png")
                         plot_grid(f"{filename} - Expected", train_eval.get("expected"), filename=f"{filename}_expected.png")
 
@@ -199,7 +214,7 @@ def batch_evaluate(directory: str):
 
 # --- MAIN ENTRY POINT ---
 if __name__ == "__main__":
-    default_dir = os.path.expanduser("data/train")
+    default_dir = os.path.expanduser("/home/epochvipc4/Desktop/projects/arc_agi1/ARC-AGI/data/training")
     parser = argparse.ArgumentParser(description="ARC-AGI Task Solver")
     parser.add_argument("--dir", type=str, default=default_dir, help="Directory with JSON task files")
     args = parser.parse_args()
