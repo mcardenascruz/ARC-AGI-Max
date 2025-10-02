@@ -14,3 +14,5 @@ def plot_grid(label: str, grid: list, filename: str = "grid.png") -> None:
     plt.close()
 
     print(f"Grid saved to {save_path}")
+
+
