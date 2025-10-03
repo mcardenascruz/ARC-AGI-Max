@@ -15,8 +15,8 @@ total_matches = 0
 llm = OllamaLLM(
     model="dengcao/Qwen3-30B-A3B-Instruct-2507:latest",
     num_predict= 1024,
-    num_ctx=4096,
-    temperature=0.4,
+    num_ctx=20000,
+    temperature=0.5,
     reasoning=True
 )
 
@@ -47,16 +47,24 @@ def generate_code(taskData: dict) -> str:
 
     # Clean response
     response1_raw = output1
+
+    # Remove DeepSeek's <think> blocks (case-insensitive)
     cleaned_text = re.sub(r'<think>.*?</think>', '', response1_raw, flags=re.DOTALL | re.IGNORECASE)
+
+    # Normalize multiple newlines
     cleaned_text = re.sub(r'\n\s*\n', '\n\n', cleaned_text).strip()
+
+    # Try to extract <reasoning> (Qwen) or <answer> (DeepSeek)
     match = re.search(r'<reasoning>([\s\S]*?)</reasoning>', cleaned_text, re.IGNORECASE | re.DOTALL)
+    if not match:
+        match = re.search(r'<answer>([\s\S]*?)</answer>', cleaned_text, re.IGNORECASE | re.DOTALL)
 
     if match:
         reasoning_content = match.group(1).strip()
         reasoning_content = re.sub(r'\n\s*\n', '\n\n', reasoning_content)
     else:
         reasoning_content = f"MODEL OUTPUT MISSING TAGS:\n{cleaned_text}"
-        print("WARNING: No <reasoning> tags found. Using raw output instead.")
+        print("WARNING: No <reasoning>/<answer> tags found. Using raw output instead.")
 
     print("Extracted REASONING:\n", reasoning_content)
 
@@ -161,7 +169,7 @@ def batch_evaluate(directory: str):
                     print(f"Current score = {total_matches}/{t} ({total_matches / t * 100:.1f}%)")
                     match = False
                     count = 0
-                    while count < 10:
+                    while count < 20:
                         generated_code = generate_code(taskData)
                         with open(log_file, 'a') as log:
                             log.write(f"Task: {filename}\n{generated_code}\n\n{'-'*40}\n")
